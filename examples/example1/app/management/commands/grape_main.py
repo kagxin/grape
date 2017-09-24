@@ -65,25 +65,35 @@ async def tail(read_file, proxy, s=1):
                             await writer.drain()
                     except:
                         proxy.unregister(writer)
-                        logging.error('writer error!')
+                        logging.error('writer error!68')
                 else:
                     await asyncio.sleep(s)
 
 async def tcp_handle(reader, writer, **kwargs):
 
     proxy.register(writer, None)
-    writer.write(json.dumps(LOGGINGFILE).encode('utf-8'))
-    await writer.drain()
+    try:
+        writer.write(json.dumps(LOGGINGFILE).encode('utf-8'))
+        await writer.drain()
+    except:
+        proxy.unregister(writer)
+        logging.error('writer error!80')
     
     while True:
         data = await reader.readline()
         try:
+            print(data.decode())
+            sys.stdout.flush()
             msg = json.loads(data.decode())
-        except ValueError, TypeError:
-            writer.write(json.dumps({'message':'json format error!'}).encode('utf-8'))
-
-        if msg['log'] in LOGGINGFILE.keys():
-            proxy.set_log(writer, msg['log'])
+        except:
+            proxy.unregister(writer)
+            logging.error('data error close writer!89')
+            writer.close()
+            break
+            
+        else:
+            if msg['log'] in LOGGINGFILE.keys():
+                proxy.set_log(writer, msg['log'])
             
         """    
         try:
