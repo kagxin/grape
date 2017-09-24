@@ -3,7 +3,19 @@ import sys
 import pipes
 import os
 import traceback
+import json
 import logging
+from django.conf import settings
+
+
+LOGGINGFILE = {}
+
+if 'handlers' in  settings.LOGGING.keys():
+    for handler_name, _ in settings.LOGGING['handlers'].items():
+        for name, filename in settings.LOGGING['handlers'][handler_name].items():
+            if name == 'filename':
+                LOGGINGFILE.setdefault(handler_name, filename)
+print(LOGGINGFILE)
 
 class FileException(Exception):
     def __init__(self, msg):
@@ -16,16 +28,16 @@ class ProxyControl:
 
     def __init__(self, *args, **kwargs):
         self.writers = {}
-        self.level = 'debug'
+        self.log = None
 
     def __str__(self):
         return 'ProxyControl:<{}>'.format(self.writers)
 
-    def set_level(self, writer, level):
-        self.writers[writer] = level
+    def set_log(self, writer, log):
+        self.writers.update(writer, log)
 
-    def register(self, writer, level):
-        self.writers.setdefault(writer, self.level)
+    def register(self, writer, log):
+        self.writers.setdefault(writer, self.log)
 
     def unregister(self, writer):
         self.writers.pop(writer, None)
@@ -43,50 +55,62 @@ async def tail(read_file, proxy, s=1):
             curr_p = _file.tell()
             line = _file.readline()
             if not line:
-                
                 _file.seek(curr_p)
                 await asyncio.sleep(s)
             else:
-                for writer, level in proxy.writers.items():
+                for writer, log in proxy.writers.items():
                     try:
-                        writer.write(line.encode('utf-8'))
-                        await writer.drain()
+                        if log == read_file:
+                            writer.write(line.encode('utf-8'))
+                            await writer.drain()
                     except:
-                        proxy.unregister(writer)                        
+                        proxy.unregister(writer)
                         logging.error('writer error!')
                 else:
                     await asyncio.sleep(s)
 
 async def tcp_handle(reader, writer, **kwargs):
 
-    proxy.register(writer, 'debug')
-
+    proxy.register(writer, None)
+    writer.write(json.dumps(LOGGINGFILE).encode('utf-8'))
+    await writer.drain()
+    
     while True:
         data = await reader.readline()
+        try:
+            msg = json.loads(data.decode())
+        except ValueError, TypeError:
+            writer.write(json.dumps({'message':'json format error!'}).encode('utf-8'))
+
+        if msg['log'] in LOGGINGFILE.keys():
+            proxy.set_log(writer, msg['log'])
+            
+        """    
         try:
             writer.write(data)
             await writer.drain()
         except:
             proxy.unregister(writer)
             logging.error('writer error!')
-
+        """
 
 def grape_main():
+        
     loop = asyncio.get_event_loop()
     
     tcp_server = asyncio.start_server(tcp_handle, '0.0.0.0', 8080, loop=loop)
+    
     tasks = [
-        asyncio.ensure_future(tail('/Users/kangxin/Program/py3env/program/grape/examples/example1/debug.log', proxy, s=0.5)),
         asyncio.ensure_future(tcp_server)
     ]
+    tasks.extend([asyncio.ensure_future(tail(filename, proxy, s=0.5)) for _, filename in LOGGINGFILE.items()])
+    
     loop.run_until_complete(asyncio.wait(tasks))
     try:
         loop.run_forever()
     except KeyboardInterrupt:
         pass
     
-    print('grape_main end!')
-
 
 if __name__ ==  '__main__':
     grape_main()
