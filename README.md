@@ -1,6 +1,9 @@
 ##### Welcome to the grape.  A remote logging tool for django. #####
 
 #### IF ####
+
+``` python
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -19,6 +22,8 @@ LOGGING = {
         },
     },
 }
+```
+
 #### THEN ####
 
 Usage:
