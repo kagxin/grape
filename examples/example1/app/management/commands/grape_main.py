@@ -5,6 +5,7 @@ import os
 import traceback
 import json
 import logging
+from json.decoder import JSONDecodeError
 from django.conf import settings
 
 
@@ -15,6 +16,7 @@ if 'handlers' in  settings.LOGGING.keys():
         for name, filename in settings.LOGGING['handlers'][handler_name].items():
             if name == 'filename':
                 LOGGINGFILE.setdefault(handler_name, filename)
+
 print(LOGGINGFILE)
 
 class FileException(Exception):
@@ -64,25 +66,22 @@ async def tail(read_file, proxy, s=1):
                             continue
                         if LOGGINGFILE[log] == read_file:
                             writer.write(line.encode('utf-8'))
-                            print('line')
                             await writer.drain()
-                    except Exception as e:
-                        logging.exception(str(e))
-                        
+                    except ConnectionResetError:
                         proxy.unregister(writer)
-                        logging.error('writer error!68')
+                        writer.close()
                 else:
                     await asyncio.sleep(s)
 
-async def tcp_handle(reader, writer, **kwargs):
+async def tcp_handle(reader, writer):
 
     proxy.register(writer, None)
     try:
         writer.write(json.dumps(LOGGINGFILE).encode('utf-8'))
         await writer.drain()
-    except:
+    except ConnectionRefusedError:
         proxy.unregister(writer)
-        logging.error('writer error!80')
+        writer.close()
     
     while True:
         data = await reader.readline()
@@ -90,25 +89,16 @@ async def tcp_handle(reader, writer, **kwargs):
             print(data.decode())
             sys.stdout.flush()
             msg = json.loads(data.decode())
-        except:
+        except (ConnectionResetError, JSONDecodeError):
             proxy.unregister(writer)
-            logging.error('data error close writer!89')
             writer.close()
             break
-            
         else:
             if msg['log'] in LOGGINGFILE.keys():
                 proxy.set_log(writer, msg['log'])
                 print(proxy.writers)
-            
-        """    
-        try:
-            writer.write(data)
-            await writer.drain()
-        except:
-            proxy.unregister(writer)
-            logging.error('writer error!')
-        """
+            else:
+                proxy.set_log(writer, None)
 
 def grape_main():
         
@@ -119,7 +109,7 @@ def grape_main():
     tasks = [
         asyncio.ensure_future(tcp_server)
     ]
-    tasks.extend([asyncio.ensure_future(tail(filename, proxy, s=0.5)) for _, filename in LOGGINGFILE.items()])
+    tasks.extend([asyncio.ensure_future(tail(filename, proxy, s=0.2)) for _, filename in LOGGINGFILE.items()])
     
     loop.run_until_complete(asyncio.wait(tasks))
     try:
