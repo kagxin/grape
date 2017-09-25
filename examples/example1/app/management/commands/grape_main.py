@@ -34,7 +34,7 @@ class ProxyControl:
         return 'ProxyControl:<{}>'.format(self.writers)
 
     def set_log(self, writer, log):
-        self.writers.update(writer, log)
+        self.writers.update({writer: log})
 
     def register(self, writer, log):
         self.writers.setdefault(writer, self.log)
@@ -60,10 +60,15 @@ async def tail(read_file, proxy, s=1):
             else:
                 for writer, log in proxy.writers.items():
                     try:
-                        if log == read_file:
+                        if log==None:
+                            continue
+                        if LOGGINGFILE[log] == read_file:
                             writer.write(line.encode('utf-8'))
+                            print('line')
                             await writer.drain()
-                    except:
+                    except Exception as e:
+                        logging.exception(str(e))
+                        
                         proxy.unregister(writer)
                         logging.error('writer error!68')
                 else:
@@ -94,6 +99,7 @@ async def tcp_handle(reader, writer, **kwargs):
         else:
             if msg['log'] in LOGGINGFILE.keys():
                 proxy.set_log(writer, msg['log'])
+                print(proxy.writers)
             
         """    
         try:
