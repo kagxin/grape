@@ -29,7 +29,7 @@ except JSONDecodeError:
 
 
 class GrapeClientShell(cmd.Cmd):
-    intro = 'Welcome to the turtle shell.   Type help or ? to list commands.\n'
+    intro = 'Welcome to the grape.  A remote logging tool for django.\n'
     prompt = '(grape)'
     def send_data(self, dct):
         global sock
