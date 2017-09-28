@@ -50,13 +50,12 @@ class GrapeClient:
         flag = 0
         while not self.reader:
             await asyncio.sleep(0.5)
-        self.queue.put(json.dumps({'log':'file'}))
             
         while True:
-            logging.info('waitting reader.')
             data = await self.reader.readline()
             data_str = data.decode('utf-8')
-            logging.info('reader:'+data_str)
+            sys.stdout.write(data_str)
+
             if not flag:
                 flag = 1
                 global CONF
@@ -72,13 +71,10 @@ class GrapeClient:
             try:
                 send_data = self.queue.get_nowait()
             except Empty:
-                logging.error('asfsadfasdfasdf')
                 await asyncio.sleep(1)
             else:
                 self.writer.write((send_data+'\n').encode('utf-8'))
                 await self.writer.drain()
-                logging.info('writer:'+send_data)
-                
 
     def start(self):
 
@@ -99,13 +95,12 @@ if __name__ == '__main__':
 
     q = Queue()
     loop = asyncio.get_event_loop()
-    loop.set_debug(True)
     client = GrapeClient(HOST, PORT, q, loop)
     tasks = client.start()
-    # f = loop.run_in_executor(None, GrapeClientShell(loop, q).cmdloop)
-    # tasks.append(asyncio.ensure_future(f))
-    # for t in tasks:
-    #     logging.info(str(t))
+    f = loop.run_in_executor(None, GrapeClientShell(loop, q).cmdloop)
+    tasks.append(asyncio.ensure_future(f))
+    for t in tasks:
+        logging.info(str(t))
 
     loop.run_until_complete(asyncio.wait(tasks))
 
