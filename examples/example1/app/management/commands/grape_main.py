@@ -8,7 +8,7 @@ import logging
 from json.decoder import JSONDecodeError
 from django.conf import settings
 
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s [%(levelname)s] %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
 
 LOGGINGFILE = {}
 
@@ -78,11 +78,9 @@ async def tcp_handle(reader, writer):
 
     proxy.register(writer, None)
     try:
-        print('get client handle')
         writer.write((json.dumps(LOGGINGFILE)+'\n').encode('utf-8'))
         await writer.drain()
-        print('writer client handle!')
-    except ConnectionRefusedError:
+    except ConnectionResetError:
         proxy.unregister(writer)
         writer.close()
 
@@ -93,9 +91,12 @@ async def tcp_handle(reader, writer):
             sys.stdout.flush()
             msg = json.loads(data.decode())
         except ConnectionResetError:
-            logging.exception('The client is disconnected!')
+            logging.info('The client is disconnected!')
+            proxy.unregister(writer)
+            writer.close()
+            break
         except JSONDecodeError:
-            logging.exception('The client data format error!')
+            logging.info('The client data format error!')
             proxy.unregister(writer)
             writer.close()
             break
