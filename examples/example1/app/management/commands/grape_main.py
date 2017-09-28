@@ -8,6 +8,7 @@ import logging
 from json.decoder import JSONDecodeError
 from django.conf import settings
 
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s [%(levelname)s] %(message)s')
 
 LOGGINGFILE = {}
 
@@ -50,7 +51,7 @@ async def tail(read_file, proxy, s=1):
 
     if not os.access(read_file, os.F_OK):
         raise FileException('File {} does not exist!'.format(read_file))
-    
+
     with open(read_file) as _file:
         _file.seek(0, 2)
         while True:
@@ -62,7 +63,7 @@ async def tail(read_file, proxy, s=1):
             else:
                 for writer, log in proxy.writers.items():
                     try:
-                        if log==None:
+                        if log == None:
                             continue
                         if LOGGINGFILE[log] == read_file:
                             writer.write(line.encode('utf-8'))
@@ -77,19 +78,24 @@ async def tcp_handle(reader, writer):
 
     proxy.register(writer, None)
     try:
-        writer.write(json.dumps(LOGGINGFILE).encode('utf-8'))
+        print('get client handle')
+        writer.write((json.dumps(LOGGINGFILE)+'\n').encode('utf-8'))
         await writer.drain()
+        print('writer client handle!')
     except ConnectionRefusedError:
         proxy.unregister(writer)
         writer.close()
-    
+
     while True:
-        data = await reader.readline()
         try:
+            data = await reader.readline()
             print(data.decode())
             sys.stdout.flush()
             msg = json.loads(data.decode())
-        except (ConnectionResetError, JSONDecodeError):
+        except ConnectionResetError:
+            logging.exception('The client is disconnected!')
+        except JSONDecodeError:
+            logging.exception('The client data format error!')
             proxy.unregister(writer)
             writer.close()
             break
@@ -101,23 +107,23 @@ async def tcp_handle(reader, writer):
                 proxy.set_log(writer, None)
 
 def grape_main():
-        
+
     loop = asyncio.get_event_loop()
-    
+    loop.set_debug(True)
     tcp_server = asyncio.start_server(tcp_handle, '0.0.0.0', 8080, loop=loop)
-    
+
     tasks = [
         asyncio.ensure_future(tcp_server)
     ]
     tasks.extend([asyncio.ensure_future(tail(filename, proxy, s=0.2)) for _, filename in LOGGINGFILE.items()])
-    
+
     loop.run_until_complete(asyncio.wait(tasks))
     try:
         loop.run_forever()
     except KeyboardInterrupt:
         pass
-    
 
-if __name__ ==  '__main__':
+
+if __name__ == '__main__':
     grape_main()
-    
+

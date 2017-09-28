@@ -2,74 +2,117 @@ import asyncio
 import cmd
 import json
 from json.decoder import JSONDecodeError
-import socket
-import threading
 import sys
 import logging
+import pdb
+from queue import Queue, Empty
 
-EXIT = False
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s [%(levelname)s] %(message)s')
 
 HOST = 'localhost'
 PORT = 8080
-
-sock = socket.socket()
-try:
-    sock.connect((HOST, PORT))
-except ConnectionRefusedError:
-    print('连接被拒绝可能是，未开启服务端！')
-    sys.exit(-1)
-
-try:
-    handles = json.loads(sock.recv(1024).decode())
-    print("""Usage:\n    trace {}
-    """.format('/'.join(handles.keys())+'/off'))
-except JSONDecodeError:
-    print('服务端数据错误!')    
-    sys.exit(-1)
-
+CONF = {}
 
 class GrapeClientShell(cmd.Cmd):
     intro = 'Welcome to the grape.  A remote logging tool for django.\n'
     prompt = '(grape)'
-    def send_data(self, dct):
-        global sock
-        log = dct.get('log')
-        if log not in handles.keys():
-            print('{}无效的参数，可选参数为：{}'.format(log, ','.join(handles.keys())))
-        try:
-           data =  json.dumps(dct) + '\n'
-           sock.sendall(data.encode('utf-8'))
-        except (JSONDecodeError, ConnectionResetError):
-            print('断开连接！')
-            sys.exit(-1)
-    def do_trace(self, arg):
-        data = json.dumps({'log':arg})+'\n'
-        print(data)
-        sock.sendall(data.encode('utf-8'))
-    def do_bye(self, arg):
-        'Stop recording, close the turtle window, and exit:  BYE'
-        print('Thank you for using Turtle')
-        self.close()
-        bye()
-        return True
-    def close(self):
-        if self.file:
-            self.file.close()
-            self.file = None
 
-def handle():
-    global sock
-    while True:
-        data = sock.recv(1024)
-        print(data)
-        if not data:
-            sys.exit(-1)
+    def __init__(self, loop, queue):
+        super(GrapeClientShell, self).__init__()
+        self.loop = loop
+        self.queue = queue
+
+    def send_data(self, arg, data):
+        self.queue.put(data)
+
+    def do_trace(self, arg):
+        data = json.dumps({'log':arg})
+        self.send_data(arg ,data)
+
+    def do_bye(self, arg):
+        'Stop recording, close the window, and exit:  BYE'
+        self.loop.stop()
+        return True
+
+
+class GrapeClient:
+
+    def __init__(self, host, port, queue, loop):
+        self.queue = queue
+        self.host = host
+        self.port = port
+        self.loop = loop
+        self.writer = None
+        self.reader = None
+
+    async def read_con(self):
+        logging.info('enter read_con!')
+        flag = 0
+        while not self.reader:
+            await asyncio.sleep(0.5)
+        self.queue.put(json.dumps({'log':'file'}))
+            
+        while True:
+            logging.info('waitting reader.')
+            data = await self.reader.readline()
+            data_str = data.decode('utf-8')
+            logging.info('reader:'+data_str)
+            if not flag:
+                flag = 1
+                global CONF
+                try:
+                    CONF = json.loads(data_str.rstrip('\n'))
+                except:
+                    logging.exception(data_str.rstrip('\n'))
+        
+
+    async def write_con(self):
+        self.reader, self.writer = await asyncio.open_connection(self.host, self.port, loop=self.loop)
+        while True:
+            try:
+                send_data = self.queue.get_nowait()
+            except Empty:
+                logging.error('asfsadfasdfasdf')
+                await asyncio.sleep(1)
+            else:
+                self.writer.write((send_data+'\n').encode('utf-8'))
+                await self.writer.drain()
+                logging.info('writer:'+send_data)
+                
+
+    def start(self):
+
+        tasks = [
+            asyncio.ensure_future(self.read_con()),
+            asyncio.ensure_future(self.write_con())
+            ]
+        
+        return tasks
+    
+    def stop(self):
+        if self.reader:
+            self.reader.close()
+        if self.writer:
+            self.writer.close()
 
 if __name__ == '__main__':
-    t1 = threading.Thread(target=handle)
-    t2 = threading.Thread(target=GrapeClientShell().cmdloop)
-    t1.start()
-    t2.start()
-    t1.join()
-    t2.join()
-    
+
+    q = Queue()
+    loop = asyncio.get_event_loop()
+    loop.set_debug(True)
+    client = GrapeClient(HOST, PORT, q, loop)
+    tasks = client.start()
+    # f = loop.run_in_executor(None, GrapeClientShell(loop, q).cmdloop)
+    # tasks.append(asyncio.ensure_future(f))
+    # for t in tasks:
+    #     logging.info(str(t))
+
+    loop.run_until_complete(asyncio.wait(tasks))
+
+    try:
+        loop.run_forever()
+    except KeyboardInterrupt:
+        logging.error('KeyboardInterrupt exit!')
+        client.stop()
+        loop.stop()
+        raise
