@@ -9,7 +9,7 @@ from json.decoder import JSONDecodeError
 from django.conf import settings
 from django.contrib.auth import authenticate
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s', filename='/tmp/aserver.log', filemode='a+')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s', filename='/tmp/gserver.log', filemode='a+')
 
 LOGGINGFILE = {}
 

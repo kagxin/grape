@@ -31,7 +31,7 @@ def get_get_data(data):
 
 async def auth(writer, reader):
     if len(sys.argv) != 5:
-        print('python -m grape_clent server port user password.\nexample: python -m grape_clent 192.168.0.1 8000 username password')
+        print('\nUsage : python -m grape_client server port user password.\nexample: python -m grape_clent 192.168.0.1 8000 username password')
         sys.stdout.flush()
         os._exit(-1)
     writer.write(wrap_send_data({'username':sys.argv[-2], 'password':sys.argv[-1]}))
@@ -61,9 +61,9 @@ class GrapeClientShell(cmd.Cmd):
     def do_trace(self, arg):
         'trace the logging of django handler: TRACE'
         if arg in CONF.keys():
-            data = {'log':arg}
+            data = {'topic':arg}
         elif arg == 'off':
-            data = {'log':None}
+            data = {'topic':None}
         else:
             print('*** Unknown arg: %s\n' % arg)
             return 
@@ -103,6 +103,7 @@ class GrapeClient:
             if not CONF:
                 try:
                     CONF = json.loads(data_str.rstrip('\n'))
+                    print(CONF)
                 except JSONDecodeError:
                     print('Server data error : {}'.format(data_str))
                     logging.exception(data_str.rstrip('\n'))
@@ -125,9 +126,12 @@ class GrapeClient:
             except Empty:
                 await asyncio.sleep(1)
             else:
-                self.writer.write(wrap_send_data(send_data))
-                await self.writer.drain()
-                logging.info('send_data to grapeserver {}'.format(send_data))
+                try:
+                    self.writer.write(wrap_send_data(send_data))
+                    await self.writer.drain()
+                    logging.info('send_data to grapeserver {}'.format(send_data))
+                except Exception as e:
+                    logging.exception(str(e))
 
     def start(self):
 

@@ -1,5 +1,5 @@
 from django.core.management.base import BaseCommand, CommandError
-from .grape_main import grape_main
+from .grape_server import grape_main
 
 class Command(BaseCommand):
     help = 'Closes the specified poll for voting'
