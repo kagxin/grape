@@ -7,8 +7,9 @@ import json
 import logging
 from json.decoder import JSONDecodeError
 from django.conf import settings
+from django.contrib.auth import authenticate
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s', filename='/tmp/aserver.log', filemode='a+')
 
 LOGGINGFILE = {}
 
@@ -78,6 +79,16 @@ async def tcp_handle(reader, writer):
 
     proxy.register(writer, None)
     try:
+        data = await reader.readline()
+        print(json.loads(data.decode('utf-8')))
+        if authenticate(**json.loads(data.decode('utf-8'))):
+            t = json.dumps({'status':1})
+        else:
+            t = json.dumps({'status':0})
+
+        writer.write((t+'\n').encode('utf-8'))
+        await writer.drain()
+        print(t+'\n')
         writer.write((json.dumps(LOGGINGFILE)+'\n').encode('utf-8'))
         await writer.drain()
     except ConnectionResetError:
