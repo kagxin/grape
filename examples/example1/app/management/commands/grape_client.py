@@ -95,7 +95,7 @@ class GrapeClient:
     async def read_con(self):
         while not self.reader:
             await asyncio.sleep(0.5)
-            
+
         while True:
             data = await self.reader.readline()
             data_str = data.decode('utf-8')
@@ -103,7 +103,6 @@ class GrapeClient:
             if not CONF:
                 try:
                     CONF = json.loads(data_str.rstrip('\n'))
-                    print(CONF)
                 except JSONDecodeError:
                     print('Server data error : {}'.format(data_str))
                     logging.exception(data_str.rstrip('\n'))
@@ -140,7 +139,7 @@ class GrapeClient:
             asyncio.ensure_future(self.write_con())
             ]
         return tasks
-    
+
     def stop(self):
         if self.writer:
             self.writer.close()
@@ -163,6 +162,7 @@ if __name__ == '__main__':
         loop.run_until_complete(asyncio.wait(tasks))
     except Exception as e:
         print(str(e))
+        raise
     finally:
         client.stop()
         loop.close()
