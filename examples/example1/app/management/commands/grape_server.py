@@ -80,7 +80,7 @@ class GrapeServer:
 
         if not os.access(file_path, os.F_OK):
             raise FileDoesNotExistException(
-                'File {} does not exist!'.format(file))
+                'File {} does not exist!'.format(file_path))
 
         with open(file_path) as _file:
             _file.seek(0, 2)
@@ -98,7 +98,7 @@ class GrapeServer:
                                     writer.write(line.encode('utf-8'))
                                     await writer.drain()
                                 except ConnectionResetError:
-                                    self.rm_sub(sub)
+                                    self.rm_sub(writer)
                                     writer.close()
                             else:
                                 await asyncio.sleep(s)
