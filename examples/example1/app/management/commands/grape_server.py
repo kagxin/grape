@@ -1,8 +1,6 @@
 import asyncio
 import sys
-import pipes
 import os
-import traceback
 import json
 import logging
 from json.decoder import JSONDecodeError
@@ -11,6 +9,15 @@ from django.contrib.auth import authenticate
 
 logging.basicConfig(level=logging.DEBUG,
                     format='%(asctime)s [%(levelname)s] %(message)s', filename='/tmp/gserver.log', filemode='a+')
+
+def log_asyncio_exception_decorator(coro):
+    async def handle_exception(*args, **kwargs):
+        try:
+            return await coro(*args, **kwargs)
+        except Exception as e:
+            logging.exception(str(e))
+            raise
+    return handle_exception
 
 
 class GrapeException(Exception):
@@ -75,7 +82,7 @@ class GrapeServer:
                 logging.info('rm writer{}'.format(sub_writer))
                 return True
         return False
-
+    @log_asyncio_exception_decorator
     async def tail(self, file_path, s=0.5):
 
         if not os.access(file_path, os.F_OK):
@@ -105,6 +112,8 @@ class GrapeServer:
                     else:
                         await asyncio.sleep(s)
 
+
+    @log_asyncio_exception_decorator
     async def tcp_handle(self, reader, writer):
         print(reader, writer)
         try:
@@ -165,7 +174,7 @@ class GrapeServer:
         tasks.append(
             asyncio.ensure_future(tcp_server_task)
         )
-        tasks.extend([asyncio.ensure_future(self.tail(path, 1))
+        tasks.extend([asyncio.ensure_future(self.tail(path, 0.2))
                       for _, path in self.files.items()])
         print(tasks)
         for res in loop.run_until_complete(asyncio.wait(tasks)):

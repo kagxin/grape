@@ -18,6 +18,15 @@ CONF = {}
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s', filename='/tmp/gclient.log', filemode='a+')
 
+def log_asyncio_exception_decorator(coro):
+    async def handle_exception(*args, **kwargs):
+        try:
+            return await coro(*args, **kwargs)
+        except Exception as e:
+            logging.exception(str(e))
+            raise
+    return handle_exception
+
 def exit_handler():
     for task in asyncio.Task.all_tasks():
         task.cancel()
@@ -29,6 +38,7 @@ def wrap_send_data(data):
 def get_get_data(data):
     return json.loads(data.decode('utf-8'))
 
+@log_asyncio_exception_decorator
 async def auth(writer, reader):
     if len(sys.argv) != 5:
         print('\nUsage : python -m grape_client server port user password.\nexample: python -m grape_clent 192.168.0.1 8000 username password')
@@ -92,6 +102,7 @@ class GrapeClient:
         self.writer = None
         self.reader = None
 
+    @log_asyncio_exception_decorator
     async def read_con(self):
         while not self.reader:
             await asyncio.sleep(0.5)
@@ -111,7 +122,7 @@ class GrapeClient:
             else:
                 sys.stdout.write(data_str)
                 self.logfile.flush() 
-
+    @log_asyncio_exception_decorator
     async def write_con(self):
         try:
             self.reader, self.writer = await asyncio.open_connection(self.host, self.port, loop=self.loop)
