@@ -27,5 +27,15 @@ LOGGING = {
 #### THEN ####
 
 Usage:
-    trace file/off
+    python manage.py grape
+
+    python -m grape_client host port username password
+
+    example:
+        python -m grape_client 127.0.0.1 8080 admin 1
+
+    trace handlers
+    trace file
+    trace off
+
 
