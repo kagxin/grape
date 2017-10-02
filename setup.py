@@ -4,12 +4,10 @@ import os
 from setuptools import setup, find_packages
 
 here = os.path.abspath(os.path.dirname(__file__))
-readme_file = os.path.join(here, 'README.rst')
-#changes_file = os.path.join(here, 'CHANGES.rst')
+readme_file = os.path.join(here, 'README.md')
 
 long_description = '\n\n'.join((
     open(readme_file).read(),
-    open(changes_file).read(),
 ))
 
 
@@ -22,7 +20,8 @@ setup(
     long_description = long_description,
     author = "kagxin",
     author_email = 'kagxin at gmail dot com',
-    packages = find_packages(),
+    packages = ['grape'],
+    # py_modules = ['grape/management/commands/grape_client'],
     classifiers = [
         'Development Status :: 5 - Production/Stable',
         'Environment :: Web Environment',
