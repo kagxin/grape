@@ -20,8 +20,7 @@ setup(
     long_description = long_description,
     author = "kagxin",
     author_email = 'kagxin at gmail dot com',
-    packages = ['grape'],
-    # py_modules = ['grape/management/commands/grape_client'],
+    packages = ['grape', 'grape.management', 'grape.management.commands'],
     classifiers = [
         'Development Status :: 5 - Production/Stable',
         'Environment :: Web Environment',
