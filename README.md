@@ -26,9 +26,9 @@ LOGGING = {
 
 #### THEN ####
 
-Usage:
-    python manage.py grape
-    python -m grape.management.commands.grape_client host port username password.
+    Usage:
+        python manage.py grape
+        python -m grape.management.commands.grape_client host port username password.
 
     example:
             python -m grape.management.commands.grape_client 127.0.0.1 8080 admin 1
