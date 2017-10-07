@@ -41,7 +41,7 @@ def get_get_data(data):
 @log_asyncio_exception_decorator
 async def auth(writer, reader):
     if len(sys.argv) != 5:
-        print('\nUsage : python -m grape_client server port user password.\nexample: python -m grape_clent 192.168.0.1 8000 username password')
+        print('\nUsage : python -m grape.management.commands.grape_client host port username password.\nexample: python -m grape.management.commands.grape_client 192.168.0.1 8000 username password')
         sys.stdout.flush()
         os._exit(-1)
     writer.write(wrap_send_data({'username':sys.argv[-2], 'password':sys.argv[-1]}))
@@ -126,7 +126,7 @@ class GrapeClient:
     async def write_con(self):
         try:
             self.reader, self.writer = await asyncio.open_connection(self.host, self.port, loop=self.loop)
-            print(self.reader, self.writer)
+            # print(self.reader, self.writer)
             await auth(self.writer, self.reader)
         except (ConnectionRefusedError, OSError):
             print('The service is not started! Client exit.')
