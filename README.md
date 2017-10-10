@@ -4,6 +4,9 @@
 
 ``` python
 
+django 
+setting.py
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -37,4 +40,5 @@ LOGGING = {
     trace file
     trace off
 
+#### grape grape 是一个django的远程查看日志的工具 ####
 
